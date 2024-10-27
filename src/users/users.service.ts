@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CreateUserDto, UserValidation } from './dto/create-user.dto';
+import { CreateUserDto, UserTypes, UserValidation } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from 'src/database/PrismaService';
 import * as bcrypt from 'bcrypt';
@@ -13,53 +13,102 @@ export class UsersService {
 
     try {
 
-    await UserValidation.validate(createUserDto)
+      await UserValidation.validate(createUserDto)
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(createUserDto.password, salt);
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(createUserDto.password, salt);
 
-    const userExists = await this.prismaService.user.findFirst({
-      where: {
-        email: createUserDto.email,
+      const userExists = await this.prismaService.user.findFirst({
+        where: {
+          email: createUserDto.email,
+        }
+      });
+      if (userExists) {
+        return { error: 'Já existe um usuario com esse email' };
       }
-    });
-    if (userExists) {
-      throw new Error('Já existe um usuario com esse email');
-    }
 
-    const newUser = {
-      name: createUserDto.name,
-      email: createUserDto.email,
-      password: hashedPassword,
-      type: createUserDto.type,
-    };
+      const newUser = {
+        name: createUserDto.name,
+        email: createUserDto.email,
+        password: hashedPassword,
+        type: createUserDto.type,
+      };
 
-    await this.prismaService.user.create({
-      data: {
-        ...newUser
-      },
-    });
+      await this.prismaService.user.create({
+        data: {
+          ...newUser
+        },
+      });
 
-    return { newUser };
+      return { newUser , message: 'Usuário cadastrado com sucesso.' };
     } catch (error) {
-      throw new Error(error.message);
+      return { error: error.message };
     }
 
   }
 
-  findAll() {
-    return `This action returns all users`;
+  async findAll() {
+    return await this.prismaService.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        type: true,
+      }
+    })
+  }
+  
+  async findByEmail(email: string) {
+    return this.prismaService.user.findUnique({ where: { email } });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async findUserById(id: string) {
+    return this.prismaService.user.findUnique({ where: { id } });
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
+  async checkPermission(userType: UserTypes, action: string): Promise<boolean> {
+    switch (userType) {
+      case UserTypes.ADMIN:
+        return true;
+      case UserTypes.SELLER:
+        return ['createProduct', 'editProduct', 'deleteProduct', 'viewProducts'].includes(action);
+      case UserTypes.CLIENT:
+        return ['accessOwnProfile', 'updateOwnProfile'].includes(action);
+      default:
+        return false;
+    }
+  }
+
+  async update(id: string, updateUserDto: UpdateUserDto) {
+    try {
+      const userExists = await this.prismaService.user.findFirst({
+        where: {
+          id: updateUserDto.id,
+        }
+      });
+      if (!userExists) {
+        return { error: 'Usuario não encontrado' };
+      }
+      const userEmailExists = await this.prismaService.user.findFirst({
+        where: {
+          email: updateUserDto.email,
+        }
+      });
+      if (userEmailExists) {
+        return { error: 'Já existe um usuario com esse email' };
+      }
+      await this.prismaService.user.update({
+        where: { id },
+        data: updateUserDto,
+      });
+      return { message: 'Usuário atualizado com sucesso!' };
+    } catch (error) {
+      
+    }
     return `This action updates a #${id} user`;
   }
 
-  remove(id: number) {
+  async remove(id: string) {
     return `This action removes a #${id} user`;
   }
 }
