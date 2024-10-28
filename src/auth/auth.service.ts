@@ -21,10 +21,10 @@ export class AuthService {
     async login(email: string, password: string) {
         const user = await this.usersService.findByEmail(email);
         if (!user || !(await this.validatePassword(password, user.password))) {
-          throw new UnauthorizedException('Invalid credentials');
+        return { status: 401, error: 'Email ou senha inválidos' };
         }
         const token = await this.generateToken(user.id);
-        return { token, user };
+        return { status: 200, message: 'Usuário logado com sucesso', token, user };
       }
 
 

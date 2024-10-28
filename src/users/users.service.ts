@@ -24,7 +24,7 @@ export class UsersService {
         }
       });
       if (userExists) {
-        return { error: 'Já existe um usuario com esse email' };
+        return { status: 409 ,error: 'Já existe um usuario com esse email' };
       }
 
       const newUser = {
@@ -40,7 +40,7 @@ export class UsersService {
         },
       });
 
-      return { newUser , message: 'Usuário cadastrado com sucesso.' };
+      return { newUser , status: 201, message: 'Usuário cadastrado com sucesso.' };
     } catch (error) {
       return { error: error.message };
     }
@@ -87,25 +87,16 @@ export class UsersService {
         }
       });
       if (!userExists) {
-        return { error: 'Usuario não encontrado' };
-      }
-      const userEmailExists = await this.prismaService.user.findFirst({
-        where: {
-          email: updateUserDto.email,
-        }
-      });
-      if (userEmailExists) {
-        return { error: 'Já existe um usuario com esse email' };
+        return {status: 404, error: 'Usuario não encontrado' };
       }
       await this.prismaService.user.update({
         where: { id },
         data: updateUserDto,
       });
-      return { message: 'Usuário atualizado com sucesso!' };
+      return {status: 200, message: 'Usuário atualizado com sucesso!' };
     } catch (error) {
-      
+      return {error};
     }
-    return `This action updates a #${id} user`;
   }
 
   async remove(id: string) {
