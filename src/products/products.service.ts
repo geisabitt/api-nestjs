@@ -30,7 +30,12 @@ export class ProductsService {
   }
 
   async findOne(id: string) {
-    return this.prismaService.product.findUnique({ where: { id } });
+    try {
+      const product = await this.prismaService.product.findUnique({ where: { id } });
+      return product
+    } catch (error) {
+      return { error , message: "Produto nao encontrado, verifique o ID do produto e tente novamente" }
+    }
   }
 
   async update(id: string, updateProductDto: UpdateProductDto) {
